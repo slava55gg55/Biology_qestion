@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Биологическая Викторина</title>
+    <style>
+        /* --- КЛЮЧЕВЫЕ ПЕРЕМЕННЫЕ (Bright Light Theme) --- */
+        :root {
+            --bg-main: #FFFFFF;             
+            --accent-bright: #AEEA00;        /* Яркий Салатовый (Lime Green) */
+            --text-dark: #1A1A1A;            /* Темный текст для максимального контраста */
+            --header-bg: #E0E0E0;            /* Светло-серый фон заголовков */
+            --secondary-color: #616161;      /* Приглушенный серый */
+            --cell-active-bg: #E8F5E9;       /* Очень светлый зеленый фон при наведении */
+            --answered-bg: #F5F5F5;          /* Почти белый для отвеченных ячеек */
+            --answered-text: #9E9E9E;        /* Светло-серый приглушенный текст */
+            --shadow-light: 0 4px 10px rgba(0, 0, 0, 0.15); 
+            --glow-shadow: 0 0 15px var(--accent-bright);
+        }
+
+        body {
+            font-family: 'Arial', sans-serif; 
+            background-color: var(--bg-main);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+
+            /* ВАШЕ ИЗОБРАЖЕНИЕ БЕЗ ОВЕРЛЕЯ */
+            background-image: url('/biology_quiz/bio.png'); 
+            background-size: cover; 
+            background-attachment: fixed;
+            background-position: center; 
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-bright);
+            text-shadow: var(--shadow-light); 
+            padding-bottom: 5px;
+            border-bottom: 3px solid var(--accent-bright);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px; /* Вернули ширину для 4 колонок */
+            background-color: rgba(255, 255, 255, 0.9); 
+            box-shadow: var(--shadow-light);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        /* --- Сетка Игры --- */
+        #game-board {
+            display: grid;
+            /* !!! КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: 4 колонки !!! */
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 15px;
+            padding: 10px;
+        }
+
+        .category-header {
+            background-color: var(--header-bg);
+            color: var(--text-dark);
+            padding: 15px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-bottom: 3px solid var(--accent-bright);
+            box-shadow: var(--shadow-light);
+            grid-row: 1; 
+        }
+
+        .question-cell {
+            background-color: var(--bg-main);
+            color: var(--text-dark);
+            font-size: 2.2rem; /* Возвращаем более крупный шрифт */
+            font-weight: bold;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid var(--secondary-color); 
+            border-radius: 8px;
+            transition: box-shadow 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .question-cell:not(:disabled):hover {
+            background-color: var(--cell-active-bg);
+            color: var(--text-dark);
+            box-shadow: var(--glow-shadow); 
+            transform: scale(1.05); /* Возвращаем больший масштаб */
+            border-color: var(--accent-bright);
+        }
+
+        /* Состояние "Отвечено" */
+        .question-cell.answered,
+        .question-cell:disabled {
+            background-color: var(--answered-bg);
+            color: var(--answered-text);
+            border-color: var(--answered-bg);
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .question-cell.answered-name {
+            font-size: 1.1rem; /* Возвращаем шрифт для имени */
+            font-weight: 600;
+        }
+
+        /* --- МОДАЛКА (Без изменений) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); 
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--bg-main);
+            padding: 40px;
+            border-radius: 8px;
+            min-width: 300px;
+            max-width: 700px;
+            width: 90%;
+            border: 5px solid var(--accent-bright);
+            box-shadow: var(--shadow-light); 
+            text-align: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        #modal-category {
+            font-size: 1.3rem;
+            color: var(--secondary-color);
+        }
+
+        #modal-value {
+            font-size: 2rem;
+            color: var(--accent-bright);
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px rgba(174, 234, 0, 0.5); 
+        }
+
+        #modal-question {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            color: var(--text-dark);
+        }
+        
+        #modal-show-answer {
+            background-color: var(--secondary-color);
+            color: var(--bg-main);
+            border: none;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        #modal-answer {
+            display: none;
+            background-color: var(--header-bg);
+            color: var(--text-dark); 
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            line-height: 1.5;
+            font-weight: 500;
+            border: 1px dashed var(--accent-bright);
+        }
+        
+        #modal-name-input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 2px solid var(--secondary-color);
+            background-color: var(--header-bg);
+            color: var(--text-dark);
+            border-radius: 5px;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+
+        #modal-save-answer {
+            background-color: var(--accent-bright);
+            color: var(--text-dark);
+            border: none;
+            padding: 12px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #modal-save-answer:hover {
+            background-color: #8cbe00;
+        }
+
+        /* --- Анимации --- */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Биологическая Викторина</h1>
+
+        <div id="game-board">
+            
+            <div class="category-header">Митоз</div>
+            <div class="category-header">Мейоз</div>
+            <div class="category-header">Гаметогенез</div>
+            <div class="category-header">Размножение</div>
+            
+
+            <button class="question-cell" data-value="5" data-category="Митоз" data-question="На какой фазе митоза начинается расхождение сестринских хроматид к противоположным полюсам клетки?" data-answer="В анафазе ">5</button>
+            <button class="question-cell" data-value="5" data-category="Мейоз" data-question="Почему дочерние клетки после мейоза имеют гаплоидный набор хромосом, если исходная клетка была диплоидной?" data-answer="Гомологичные хромосомы расходятся в мейозе I, уменьшая набор вдвое">5</button>
+            <button class="question-cell" data-value="5" data-category="Гаметогенез" data-question="Какая ключевая разница между мужским и женским гаметогенезом проявляется уже на стадии формирования гамет?" data-answer="Сперматогенез даёт четыре функциональные гаметы, а оогенез — одну яйцеклетку и полярные тельца">5</button>
+            <button class="question-cell" data-value="5" data-category="Размножение" data-question="Какое первое событие происходит со сперматозоидом после контакта с оболочками яйцеклетки?" data-answer="Начинается акросомная реакция">5</button>
+
+            <button class="question-cell" data-value="10" data-category="Митоз" data-question="На какой стадии митоза хромосомы выстраиваются по экватору клетки?" data-answer="В метафазе">10</button>
+            <button class="question-cell" data-value="10" data-category="Мейоз" data-question="На какой фазе мейоза происходит кроссинговер?" data-answer="В профазе I, на стадии пахитены">10</button>
+            <button class="question-cell" data-value="10" data-category="Гаметогенез" data-question="На какой стадии оогенеза возникает длительная пауза, продолжающаяся до овуляции?" data-answer="На стадии профазы I (диплотена, стадия «диктиотены»)">10</button>
+            <button class="question-cell" data-value="10" data-category="Размножение" data-question="Какое событие предотвращает проникновение в яйцеклетку второго сперматозоида?" data-answer="Кортикальная реакция и последующее «затвердевание» зоны пеллюциды">10</button>
+
+            <button class="question-cell" data-value="15" data-category="Митоз" data-question="Какой компонент цитоскелета формирует веретено деления и отвечает за расхождение хроматид?" data-answer="Микротрубочки (из тубулина)">15</button>
+            <button class="question-cell" data-value="15" data-category="Мейоз" data-question="Чем отличается расхождение хромосом в мейозе I от расхождения хроматид в мейозе II?" data-answer="В мейозе I расходятся гомологичные хромосомы, а сестринские хроматиды остаются вместе; в мейозе II расходятся уже хроматиды">15</button>
+            <button class="question-cell" data-value="15" data-category="Гаметогенез" data-question="Почему при сперматогенезе образуются четыре гаплоидные клетки, а при оогенезе — одна полноценная?" data-answer="Яйцеклетке нужны большой объём цитоплазмы и ресурсы для раннего развития, поэтому деления неравномерные; у сперматозоидов задача — количество">15</button>
+            <button class="question-cell" data-value="15" data-category="Размножение" data-question="Что запускает кортикальную реакцию яйцеклетки и как изменяется зона пеллюцида?" data-answer="Повышение концентрации Ca²⁺ в цитоплазме; зона пеллюцида модифицируется белками, становясь непроницаемой">15</button>
+
+            <button class="question-cell" data-value="20" data-category="Митоз" data-question="Чем отличается контрольная точка G2/M от контрольной точки метафаза–анафаза, и какое событие запускает анафазу?" data-answer="G2/M проверяет полноту репликации ДНК и целостность хромосом, метафаза–анафаза контролирует правильное прикрепление всех хромосом к веретену, анафазу запускает активность APC/C, который разрушает секурин и активирует сепаразу">20</button>
+            <button class="question-cell" data-value="20" data-category="Мейоз" data-question="Как нарушение расхождения хромосом на стадии анафазы I или II приводит к анеуплоидиям, и почему риск возрастает с возрастом?" data-answer="Недисъюнкция приводит к тому, что одна гамета получает лишнюю хромосому, другая — недостаёт. У женщин длительная пауза ооцитов в профазе I повышает вероятность ошибок соединения веретена и ослабляет когезин.">20</button>
+            <button class="question-cell" data-value="20" data-category="Гаметогенез" data-question="Как регулируется запуск мейоза у первичных половых клеток у женщин?" data-answer="У женщин примордиальные клетки входят в мейоз ещё в эмбриогенезе под влиянием ретиноевой кислоты">20</button>
+            <button class="question-cell" data-value="20" data-category="Размножение" data-question="Какова роль ионов кальция в активации эмбриона после оплодотворения, и почему волны Ca²⁺ важны?" data-answer="Волны Ca²⁺ запускают завершение мейоза II, активируют метаболизм и включают программы раннего дробления. Колебания обеспечивают точное и поэтапное включение сигнальных путей">20</button>
+            
+        </div>
+    </div>
+
+    <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modal-category"></h2>
+            <h3 id="modal-value"></h3>
+            <p id="modal-question"></p>
+            
+            <button id="modal-show-answer">Показать ответ</button>
+            <p id="modal-answer"></p>
+            
+            <input type="text" id="modal-name-input" placeholder="Имя ответившего">
+            
+            <button id="modal-save-answer">Сохранить</button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- JAVASCRIPT ЛОГИКА (ВЕРИФИЦИРОВАНА) ---
+
+        // Получаем ссылки на DOM-элементы
+        const gameBoard = document.getElementById('game-board');
+        const modal = document.getElementById('modal');
+        const modalCategory = document.getElementById('modal-category');
+        const modalValue = document.getElementById('modal-value');
+        const modalQuestion = document.getElementById('modal-question');
+        
+        // Элементы модалки
+        const modalShowAnswerBtn = document.getElementById('modal-show-answer');
+        const modalAnswer = document.getElementById('modal-answer');
+        const modalNameInput = document.getElementById('modal-name-input');
+        const modalSaveAnswerBtn = document.getElementById('modal-save-answer');
+
+        let currentCell = null; // Переменная для хранения активной ячейки
+
+        // --- Делегатор событий для открытия модалки ---
+        gameBoard.addEventListener('click', (event) => {
+            const cell = event.target;
+            // Проверяем, что кликнули по ячейке И что она НЕ отключена
+            if (cell.classList.contains('question-cell') && !cell.disabled) {
+                
+                // 1. Сохраняем ячейку, с которой работаем
+                currentCell = cell;
+
+                // 2. Получаем данные 
+                const value = cell.dataset.value;
+                const category = cell.dataset.category;
+                const question = cell.dataset.question;
+                const answer = cell.dataset.answer;
+
+                // 3. Заполняем модальное окно
+                modalCategory.textContent = category;
+                modalValue.textContent = `За ${value} очков`;
+                modalQuestion.textContent = question;
+                modalAnswer.textContent = answer; 
+
+                // 4. Сбрасываем состояние модалки 
+                modalAnswer.style.display = 'none'; // Скрываем ответ
+                modalNameInput.value = ''; // Чистим поле имени
+                
+                // 5. Показываем модальное окно
+                modal.classList.add('show');
+            }
+        });
+
+        // --- Показать ответ ---
+        modalShowAnswerBtn.addEventListener('click', () => {
+            modalAnswer.style.display = 'block'; // Показываем блок с ответом
+        });
+
+        // --- Функция для закрытия модалки ---
+        function closeModal() {
+            modal.classList.remove('show');
+            currentCell = null; 
+        }
+
+        // --- Сохранить и Закрыть (Ключевая логика: только здесь помечаем как отвеченное!) ---
+        modalSaveAnswerBtn.addEventListener('click', () => {
+            if (!currentCell) return; 
+
+            const name = modalNameInput.value.trim();
+
+            // 1. Помечаем ячейку как отвеченную 
+            currentCell.classList.add('answered');
+            currentCell.disabled = true;
+
+            // 2. Если имя введено, вставляем его в ячейку
+            if (name) {
+                currentCell.textContent = name;
+                currentCell.classList.add('answered-name'); 
+            } 
+
+            // 3. Закрываем окно
+            closeModal();
+        });
+
+        // --- Закрытие по клику на фон (отмена) ---
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeModal(); 
+            }
+        });
+
+    </script>
+
+</body>
+
+</html>
+
